@@ -1,1 +1,1 @@
-web: gunicorn wsgi:server/app
+web: gunicorn mass_guest_registrator:server/app
