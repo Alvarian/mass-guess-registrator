@@ -3,15 +3,15 @@ from xl_utility.formatter import *
 from xl_utility.determinizer import *
 
 from inspect import getmembers, isfunction
-import json
+import json, os
 
 from io import BytesIO
 from flask import Flask, request, render_template, send_file, session
 import names
 
 app = Flask(__name__)
-app.debug = True
-app.secret_key = "development key"
+app.debug = bool(int(os.environ.get("FLASK_DEBUG")))
+app.secret_key = os.environ.get("FLASK_SECRET")
 
 
 @app.route("/")
