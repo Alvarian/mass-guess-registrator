@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+
+        <style>
+            .drop-area {
+                border: 2px dashed #ccc;
+                border-radius: 20px;
+                width: 480px;
+                font-family: sans-serif;
+                margin: 50px auto;
+                padding: 20px;
+            }
+            .drop-area.highlight {
+                border-color: purple;
+            }
+            p {
+                margin-top: 0;
+            }
+            .my-form {
+                margin-bottom: 10px;
+            }
+            #gallery {
+                margin-top: 10px;
+            }
+            #gallery img {
+                width: 150px;
+                margin-bottom: 10px;
+                margin-right: 10px;
+                vertical-align: middle;
+            }
+            .button {
+                display: inline-block;
+                padding: 10px;
+                background: #ccc;
+                cursor: pointer;
+                border-radius: 5px;
+                border: 1px solid #ccc;
+            }
+            .button:hover {
+                background: #ddd;
+            }
+            #fileElem {
+                display: none;
+            }
+
+             /* The Modal (background) */
+            .modal {
+                display: none; /* Hidden by default */
+                position: fixed; /* Stay in place */
+                z-index: 1; /* Sit on top */
+                left: 0;
+                top: 0;
+                width: 100%; /* Full width */
+                height: 100%; /* Full height */
+                overflow: auto; /* Enable scroll if needed */
+                background-color: rgb(0,0,0); /* Fallback color */
+                background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            }
+
+            /* Modal Content/Box */
+            .modal-content {
+                background-color: #fefefe;
+                margin: 15% auto; /* 15% from the top and centered */
+                padding: 20px;
+                border: 1px solid #888;
+                width: 80%; /* Could be more or less, depending on screen size */
+                display: flex;
+                flex-direction: column;
+                position: relative;
+            }
+
+            /* The Close Button */
+            .close {
+                color: #aaa;
+                float: right;
+                font-size: 28px;
+                font-weight: bold;
+                position: absolute;
+                right: 0;
+            }
+
+            .close:hover,
+            .close:focus {
+                color: black;
+                text-decoration: none;
+                cursor: pointer;
+            } 
+
+            .grid {
+                display: grid;
+                /* gap: 50px; */
+                grid-template-columns: repeat(auto-fit, minmax(540px, 1fr));
+            }
+        </style>
+        <!-- use version 0.19.1 -->
+        <script lang="javascript" src="https://cdn.sheetjs.com/xlsx-0.19.1/package/dist/xlsx.full.min.js"></script>
+    </head>
+    <body>
+        <h2>Presets</h2>
+        <div class="presetsGrid">
+            <div class="drop-area" ondrop="handleDrop(event, 'events')">
+                <!-- Check against sheet columns looking for name or first name and last name, email or number -->
+                <h3>Events/Summits</h3>
+                <form class="my-form">
+                    <p>Upload multiple files with the file dialog or by dragging and dropping images onto the dashed region</p>
+                    <input type="file" id="fileElem" multiple accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="handleFiles(this.files)">
+                    <label class="button" for="fileElem">Select some files</label>
+                </form>
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="grid">
+            {% for feature in features %}
+                <div class="drop-area" ondrop="handleDrop(event, `{{ feature[0] }}`)">
+                    <h3>{{ (feature[0].split("_")[0] + " " + feature[0].split("_")[1]).title() }}</h3>
+                    <form class="my-form">
+                        <p>Upload multiple files with the file dialog or by dragging and dropping images onto the dashed region</p>
+                        <input type="file" id="fileElem" multiple accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="handleFiles(this.files)">
+                        <label class="button" for="fileElem">Select some files</label>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Modals -->
+        <div id="alteringModal" class="modal">
+            <!-- Modal content -->
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3 id="alterTitle"></h3>
+
+                <label for="columns" >Choose Columns to Alter:</label>
+                <select name="columns" id="columns" multiple></select> 
+
+                <input type="submit" value="Submit" id="submitAlter" />
+            </div>
+        </div> 
+
+        <div id="presetModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3 id="presetTitle"></h3>
+
+                <p>Input times for both fields:</p>
+                <form id="presetContainer"></form>
+
+                <input type="submit" value="Submit" id="submitPreset" />
+            </div>
+        </div>
+
+        <div id="newColumnModal" class="modal">
+            <!-- Modal content -->
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3 id="mockTitle"></h3>
+
+                <form>
+                    <p>Select mock data type:</p>
+                    <label for="ran_names">Random Names</label>
+                    <input type="radio" id="ran_names" name="mockType" value="get_random_names" class="mockOptions" /><br>
+
+                    <label for="custom">Custom:</label>
+                    <input type="radio" id="custom" name="mockType" value="custom" class="mockOptions"><br>
+
+                    <label for="colName">Column Name</label>
+                    <input type="text" name="colName" class="customs" /><br>
+
+                    <label for="colVal">Value</label>
+                    <input type="text" name="colVal" class="customs" />
+                </form>
+
+                <input type="submit" value="Submit" id="submitMock" />
+            </div>
+        </div> 
+
+        <script>
+            let dropArea = document.getElementsByClassName('drop-area');
+            // Get the <span> element that closes the modal
+            let span = document.getElementsByClassName("close");
+            // Get the modal
+            let alteringModal = document.getElementById("alteringModal");
+            let newColumnModal= document.getElementById("newColumnModal");
+            let presetModal= document.getElementById("presetModal");
+            
+            function preventDefaults (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            ;['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                [...dropArea].forEach(x => x.addEventListener(eventName, preventDefaults, false));
+            });
+
+            function highlight(e) {
+                [...dropArea].forEach(x => x.classList.add('highlight'));
+            }
+            function unhighlight(e) {
+                [...dropArea].forEach(x => x.classList.remove('highlight'));
+            }
+            ;['dragenter', 'dragover'].forEach(eventName => {
+                [...dropArea].forEach(x => x.addEventListener(eventName, highlight, false));
+            });
+            ;['dragleave', 'drop'].forEach(eventName => {
+                [...dropArea].forEach(x => x.addEventListener(eventName, unhighlight, false));
+            });
+
+            async function handleSubmission(formData, file, featureEndpoint, getSelected) {
+                let url = `/${featureEndpoint}`;
+
+                try {
+                    getSelected(formData);
+                    formData.append('file', file);
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) throw response.text();
+                    
+                    if (response.statusText !== "OK") alert(response.statusText); 
+
+                    const blob = await response.blob();
+                    if (!blob.size) throw "No alterations occured.";
+                    const buffer = URL.createObjectURL(blob);
+
+                    const a = document.createElement("a");
+                    document.body.appendChild(a);
+                    a.style = "display: none";
+                    a.href = buffer;
+                    a.download = file;
+                    a.click();
+                } catch (err) {
+                    alert(err);
+                } finally {
+                    location.reload();
+                }
+            }
+            async function uploadFile(file, feature) {                
+                const data = await file.arrayBuffer();
+                let firstSheetName = Object.keys(XLSX.readFile(data).Sheets)[0];
+                let ws = XLSX.readFile(data).Sheets[firstSheetName];
+
+                let maxRow = XLSX.utils.decode_range(ws["!ref"]).e.r
+                delete ws["!ref"];
+                delete ws["!margins"];
+
+                const columnList = (function() {
+                    const list = [];
+                    for (const cell in ws) {
+                        const c = cell.split("");
+                        if (c[1] !== "1") break;
+
+                        list.push({
+                            name: ws[cell].v,
+                            letter: c[0]
+                        });
+                    }
+                    return list;
+                })();
+
+                function findInColumn(columnLetter, condition, valueCheck, errorTemplate) {
+                    let hasValue = "";
+                    switch (condition) {
+                        case "equals":
+                            for (let idx = 1; idx <= maxRow+1; idx++) {
+                                const cell = ws[`${columnLetter}${idx}`];
+                                
+                                if (cell == valueCheck) hasValue += errorTemplate(cell, idx);
+                            }
+                            break;
+                        case "moreThan":
+                            for (let idx = 1; idx <= maxRow+1; idx++) {
+                                const cell = ws[`${columnLetter}${idx}`];
+                                
+                                if (parseInt(cell) > valueCheck) hasValue += errorTemplate(cell, idx);
+                            }
+                            break;
+                    }
+                    
+                    if (hasValue.length) return hasValue;
+                }
+
+                function squishString(string) {
+                    return string.replace(" ", "").toLowerCase();
+                }
+
+                function limitInput(element, length) {
+                    let charValue = String.fromCharCode(element.keyCode);
+                    if ((isNaN(charValue)) && (element.which != 8 )) { // BSP KB code is 8
+                        element.preventDefault();
+                    } else {
+                        let max_chars = length-1;
+                        
+                        if(element.target.value.length > max_chars) {
+                            element.target.value = element.target.value.substr(0, max_chars);
+                        }
+                    }
+                }
+                
+                function createPresetFields(fieldProperties, container) {
+                    fieldProperties.forEach(field => {
+                        const label = document.createElement("label");
+                        label.setAttribute("for", field["name"]);
+                        label.innerText = field["name"].split("_").map(x => x.toUpperCase()).join(" ") + ":";
+                        container.appendChild(label);
+                        container.appendChild(document.createElement("br"));
+
+                        if (field["slots"].length) {
+                            const div = document.createElement("div");
+
+                            field["slots"].forEach(slot => {
+                                const input = document.createElement("input");
+                                input.onkeypress = (event) => limitInput(event, slot["max"]);
+                                input.type = slot["type"];
+                                input.placeholder = slot["holder"];
+                                input.name = field["name"];
+                                input.className = "presets";
+                                input.maxLength = slot["max"];
+
+                                div.appendChild(input);
+                            });
+
+                            container.appendChild(div);
+                        } else {
+                            const input = document.createElement("input");
+                            input.type = "text";
+                            input.name = field["name"];
+                            input.className = "presets";
+
+                            container.appendChild(input);
+                            container.appendChild(document.createElement("br"));
+                        }
+                    })
+                }
+
+                let formData = new FormData();
+
+                switch (feature) {
+                    case "insert_mock_data":
+                        newColumnModal.style.display = "block";
+                        formData.append("max_row", maxRow);
+
+                        document.getElementById("mockTitle").innerText = firstSheetName;
+                        document.getElementById("submitMock").onclick = (e) => handleSubmission(formData, file, feature, () => {
+                            const mockSelected = [...document.getElementsByClassName("mockOptions")].filter(x => x.checked)[0].value;
+                            formData.append("mock_selected", mockSelected);
+                            formData.append("custom_inputs", [...document.getElementsByClassName("customs")].map(x => x.value));
+                        });
+
+                        break;
+                    case "events":
+                        createPresetFields([{
+                            name: "start_date",
+                            slots: [{type: "number", holder: "MM", max: "2"}, {type: "number", holder: "DD", max: "2"}, {type: "number", holder: "YYYY", max: "4"}]
+                        }, {
+                            name: "end_date",
+                            slots: [{type: "number", holder: "MM", max: "2"}, {type: "number", holder: "DD", max: "2"}, {type: "number", holder: "YYYY", max: "4"}]
+                        }], document.getElementById("presetContainer"));
+
+                        let errorStatement = "";
+                        const hasEmail = columnList.find(x => x["name"] === "email") || columnList.find(x => squishString(x["name"]) === "emailaddress");
+                        const hasPhone = columnList.find(x => x["name"] === "phone") || columnList.find(x => squishString(x["name"]) === "phonenumber");
+                        if (!(hasEmail || hasPhone)) errorStatement += "Please create columns: ('email' or 'email address') OR ('phone' or 'phone number')! ";
+                        
+                        const hasFirst = columnList.find(x => squishString(x["name"]) === "firstname");
+                        const hasLast = columnList.find(x => squishString(x["name"]) === "lastname");
+                        const hasName = columnList.find(x => x["name"] === "name") || columnList.find(x => squishString(x["name"]) === "full name");
+                        if (!(hasName || (hasFirst && hasLast))) errorStatement += "Please create columns: ('name' or 'full name') OR ('first name' and 'last name')!";
+
+                        if (errorStatement) return alert(errorStatement);
+
+                        const emailHasNull = findInColumn(hasEmail["letter"], "equals", undefined, (value, idx) => `Missing email was found on row ${idx}. `);
+                        const phoneHasNull = findInColumn(hasPhone["letter"], "equals", undefined, (value, idx) => `Missing phone was found on row ${idx}. `);
+                        if (emailHasNull && phoneHasNull) return alert("Both: " + emailHasNull + phoneHasNull);
+
+                        if (hasName) {
+                            const nameHasNull = findInColumn(hasName["letter"], "equals", undefined, (value, idx) => `Missing name was found on row ${idx}. `);
+
+                            if (nameHasNull) return alert(nameHasNull);
+                        } else {
+                            const firstHasNull = findInColumn(hasFirst["letter"], "equals", undefined, (value, idx) => `Missing first name was found on row ${idx}. `);
+                            const lastHasNull = findInColumn(hasLast["letter"], "equals", undefined, (value, idx) => `Missing last name was found on row ${idx}. `);
+                            
+                            if (firstHasNull && lastHasNull) return alert("Both: " + firstHasNull + lastHasNull);
+                            if (firstHasNull || lastHasNull) return alert(firstHasNull || lastHasNull);
+                        }
+
+                        document.getElementById("presetTitle").innerText = "Events and Summits Autocomplete";
+                        document.getElementById("submitPreset").onclick = (e) => handleSubmission(formData, file, feature, () => {
+                            let fields = [...document.getElementsByClassName("presets")];
+                            const presetFields = fields.filter(x => x.value).map(x => x.value);
+                            
+                            if (presetFields.filter(x => !parseInt(x)).length) return alert("Fields cannot be zeros!");
+                            if (fields.length !== presetFields.length) return alert("Please fill out all fields!");
+                            if (parseInt(presetFields[0]) > 12) return alert("Month(MM) cannot be over 12!");
+
+                            // compare epoch of current and epoch of input: !x < current
+                            const sdEpoch = parseInt((new Date(`${presetFields[2]}-${presetFields[0]}-${presetFields[1]}`)).getTime());
+                            const edEpoch = parseInt((new Date(`${presetFields[5]}-${presetFields[3]}-${presetFields[4]}`)).getTime());
+                            const currentEpoch = parseInt((new Date()).getTime());
+
+                            if (sdEpoch < currentEpoch) return alert("Start date cannot be less than current date!");
+                            if (edEpoch < sdEpoch) return alert("End date cannot be less than start date!");
+
+                            formData.append("preset_fields", JSON.stringify({
+                                "Start Date": `${presetFields[0]}-${presetFields[1]}-${presetFields[2]}`,
+                                "End Date": `${presetFields[3]}-${presetFields[4]}-${presetFields[5]}`,
+                                "columns": [[hasName["name"]] || [hasFirstAndLast["name"]], [hasEmail["name"]]]
+                            }));
+                        });
+
+                        presetModal.style.display = "block";
+
+                        break;
+                    default:
+                        let columns = document.getElementById("columns");
+                      
+                        columnList.forEach(column => {
+                            let column_selection = document.createElement("option");
+                            column_selection.value = column["name"]
+                            column_selection.innerText = column["name"]
+                            column_selection.className = "column";
+                            column_selection.onmousedown = (e) => {
+                                e.preventDefault();
+                                e.target.selected = !e.target.selected;
+
+                                return false;
+                            }
+
+                            columns.appendChild(column_selection);
+                        });
+
+                        alteringModal.style.display = "block";
+
+                        document.getElementById("alterTitle").innerText = firstSheetName;
+                        document.getElementById("submitAlter").onclick = (e) => handleSubmission(formData, file, feature, () => {
+                            const columnsSelected = [...document.getElementsByClassName("column")].filter(x => x.selected).map(x => x.value);
+                            console.log("??")
+                            formData.append('columns_selected', columnsSelected);
+                        });
+
+                        break;
+                }
+            }
+            function handleDrop(e, featureName) {
+                let dt = e.dataTransfer;
+                let files = dt.files;
+                
+                ([...files]).forEach(x => uploadFile(x, featureName));
+            }
+
+            // When the user clicks on <span> (x), close the modal
+            [...span].forEach(x => x.onclick = () => location.reload());
+
+            // When the user clicks anywhere outside of the modal, close it
+            window.onclick = function(event) {
+                if (event.target == alteringModal || event.target == newColumnModal) {
+                    location.reload();
+                }
+            } 
+        </script>
+    </body>
+</html>
