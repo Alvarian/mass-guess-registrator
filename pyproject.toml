@@ -6,7 +6,7 @@ authors = ["Ivan Alvarez <alvarivan88@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "3.10.8"
 openpyxl = "^3.0.10"
 flask = "^2.2.2"
 python-dotenv = "^0.21.0"
