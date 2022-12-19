@@ -270,14 +270,14 @@
 
                     switch (condition) {
                         case "equals":
-                            for (let idx = 1; idx <= maxRow+1; idx++) {
+                            for (let idx = 1; idx <= maxRow; idx++) {
                                 const cell = ws[`${columnLetter}${idx}`];
                                 
                                 if (cell == valueCheck) hasValue += errorTemplate(cell, idx);
                             }
                             break;
                         case "moreThan":
-                            for (let idx = 1; idx <= maxRow+1; idx++) {
+                            for (let idx = 1; idx <= maxRow; idx++) {
                                 const cell = ws[`${columnLetter}${idx}`];
                                 
                                 if (parseInt(cell) > valueCheck) hasValue += errorTemplate(cell, idx);
