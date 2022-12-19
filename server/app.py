@@ -28,14 +28,14 @@ def index():
 def get_event_preset():
     EXCEL_FILE = BytesIO(request.files["file"].read())
     preset_payload = json.loads(request.form["preset_fields"])
-
-    formatted_sn = separate_names(preset_payload["columns"][0], EXCEL_FILE)
-    formatted_start_time = insert_mock_data(["Start Time"], "7:00am", BytesIO(formatted_sn["buffer"]))
+    
+    # formatted_sn = separate_names(preset_payload["columns"][0], EXCEL_FILE)
+    formatted_start_time = insert_mock_data(["Start Time"], "7:00am", BytesIO(separate_names(preset_payload["columns"][0], EXCEL_FILE)["buffer"]) if len(preset_payload["columns"][0]) >= 1 else EXCEL_FILE)
     formatted_end_time = insert_mock_data(["End Time"], "7:00pm", BytesIO(formatted_start_time["buffer"]))
     formatted_start_date = insert_mock_data(["Start Date"], preset_payload["Start Date"], BytesIO(formatted_end_time["buffer"]))
     formatted_end_date = insert_mock_data(["End Date"], preset_payload["End Date"], BytesIO(formatted_start_date["buffer"]))
 
-    final_exception = formatted_sn["exception"] + formatted_start_time["exception"] + formatted_end_time["exception"] if not all([formatted_sn["exception"], formatted_start_time["exception"], formatted_end_time["exception"]]) else "OK"
+    final_exception = formatted_start_time["exception"] + formatted_end_time["exception"] if not all([formatted_start_time["exception"], formatted_end_time["exception"]]) else "OK"
 
     return send_file(
         BytesIO(formatted_end_date["buffer"]), 

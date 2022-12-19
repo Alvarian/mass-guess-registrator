@@ -221,8 +221,8 @@
                         method: 'POST',
                         body: formData
                     });
-
-                    if (!response.ok) throw response.text();
+                    
+                    if (!response.ok) throw (await response.text());
                     
                     if (response.statusText !== "OK") alert(response.statusText); 
 
@@ -267,6 +267,7 @@
 
                 function findInColumn(columnLetter, condition, valueCheck, errorTemplate) {
                     let hasValue = "";
+
                     switch (condition) {
                         case "equals":
                             for (let idx = 1; idx <= maxRow+1; idx++) {
@@ -365,28 +366,28 @@
                         }], document.getElementById("presetContainer"));
 
                         let errorStatement = "";
-                        const hasEmail = columnList.find(x => x["name"] === "email") || columnList.find(x => squishString(x["name"]) === "emailaddress");
-                        const hasPhone = columnList.find(x => x["name"] === "phone") || columnList.find(x => squishString(x["name"]) === "phonenumber");
+                        const hasEmail = columnList.find(x => x["name"] === "email") || columnList.find(x => squishString(x["name"]) === "emailaddress") || undefined;
+                        const hasPhone = columnList.find(x => x["name"] === "phone") || columnList.find(x => squishString(x["name"]) === "phonenumber") || undefined;
                         if (!(hasEmail || hasPhone)) errorStatement += "Please create columns: ('email' or 'email address') OR ('phone' or 'phone number')! ";
-                        
-                        const hasFirst = columnList.find(x => squishString(x["name"]) === "firstname");
-                        const hasLast = columnList.find(x => squishString(x["name"]) === "lastname");
-                        const hasName = columnList.find(x => x["name"] === "name") || columnList.find(x => squishString(x["name"]) === "full name");
+                
+                        const hasFirst = columnList.find(x => squishString(x["name"]) === "firstname") || undefined;
+                        const hasLast = columnList.find(x => squishString(x["name"]) === "lastname") || undefined;
+                        const hasName = columnList.find(x => x["name"] === "name") || columnList.find(x => squishString(x["name"]) === "full name") || undefined;
                         if (!(hasName || (hasFirst && hasLast))) errorStatement += "Please create columns: ('name' or 'full name') OR ('first name' and 'last name')!";
 
                         if (errorStatement) return alert(errorStatement);
 
-                        const emailHasNull = findInColumn(hasEmail["letter"], "equals", undefined, (value, idx) => `Missing email was found on row ${idx}. `);
-                        const phoneHasNull = findInColumn(hasPhone["letter"], "equals", undefined, (value, idx) => `Missing phone was found on row ${idx}. `);
+                        const emailHasNull = findInColumn(hasEmail?.letter, "equals", undefined, (value, idx) => `Missing email was found on row ${idx}. `);
+                        const phoneHasNull = findInColumn(hasPhone?.letter, "equals", undefined, (value, idx) => `Missing phone was found on row ${idx}. `);
                         if (emailHasNull && phoneHasNull) return alert("Both: " + emailHasNull + phoneHasNull);
 
                         if (hasName) {
-                            const nameHasNull = findInColumn(hasName["letter"], "equals", undefined, (value, idx) => `Missing name was found on row ${idx}. `);
+                            const nameHasNull = findInColumn(hasName?.letter, "equals", undefined, (value, idx) => `Missing name was found on row ${idx}. `);
 
                             if (nameHasNull) return alert(nameHasNull);
                         } else {
-                            const firstHasNull = findInColumn(hasFirst["letter"], "equals", undefined, (value, idx) => `Missing first name was found on row ${idx}. `);
-                            const lastHasNull = findInColumn(hasLast["letter"], "equals", undefined, (value, idx) => `Missing last name was found on row ${idx}. `);
+                            const firstHasNull = findInColumn(hasFirst?.letter, "equals", undefined, (value, idx) => `Missing first name was found on row ${idx}. `);
+                            const lastHasNull = findInColumn(hasLast?.letter, "equals", undefined, (value, idx) => `Missing last name was found on row ${idx}. `);
                             
                             if (firstHasNull && lastHasNull) return alert("Both: " + firstHasNull + lastHasNull);
                             if (firstHasNull || lastHasNull) return alert(firstHasNull || lastHasNull);
@@ -412,7 +413,7 @@
                             formData.append("preset_fields", JSON.stringify({
                                 "Start Date": `${presetFields[0]}-${presetFields[1]}-${presetFields[2]}`,
                                 "End Date": `${presetFields[3]}-${presetFields[4]}-${presetFields[5]}`,
-                                "columns": [[hasName["name"]] || [hasFirstAndLast["name"]], [hasEmail["name"]]]
+                                "columns": [hasName ? [hasName.name] : [], [hasEmail?.name]]
                             }));
                         });
 
