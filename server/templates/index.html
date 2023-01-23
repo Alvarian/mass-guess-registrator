@@ -44,7 +44,7 @@
             .button:hover {
                 background: #ddd;
             }
-            #fileElem {
+            .fileInputs {
                 display: none;
             }
 
@@ -108,8 +108,8 @@
                 <h3>Events/Summits</h3>
                 <form class="my-form">
                     <p>Upload multiple files with the file dialog or by dragging and dropping images onto the dashed region</p>
-                    <input type="file" id="fileElem" multiple accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="handleFiles(this.files)">
-                    <label class="button" for="fileElem">Select some files</label>
+                    <input class="fileInputs" type="file" id="event" multiple accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" onchange="handleFiles(this.files, 'events')">
+                    <label class="button" for="event">Select some files</label>
                 </form>
             </div>
         </div>
@@ -122,8 +122,8 @@
                     <h3>{{ (feature[0].split("_")[0] + " " + feature[0].split("_")[1]).title() }}</h3>
                     <form class="my-form">
                         <p>Upload multiple files with the file dialog or by dragging and dropping images onto the dashed region</p>
-                        <input type="file" id="fileElem" multiple accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="handleFiles(this.files)">
-                        <label class="button" for="fileElem">Select some files</label>
+                        <input class="fileInputs" type="file" id="featureInput{{ feature[0] }}" multiple accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" onchange="handleFiles(this.files, `{{ feature[0] }}`)">
+                        <label class="button" for="featureInput{{ feature[0] }}">Select some files</label>
                     </form>
                 </div>
             {% endfor %}
@@ -477,6 +477,10 @@
                 let files = dt.files;
                 
                 ([...files]).forEach(x => uploadFile(x, featureName));
+            }
+            function handleFiles(files, featureName) {
+                ([...files]).forEach(x => uploadFile(x, featureName));
+                console.log(featureName)
             }
 
             // When the user clicks on <span> (x), close the modal
