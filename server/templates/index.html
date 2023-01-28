@@ -5,8 +5,12 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Document</title>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter">
 
         <style>
+            * {
+                font-family: "Inter", sans-serif;
+            }
             .drop-area {
                 border: 2px dashed #ccc;
                 border-radius: 20px;
@@ -161,19 +165,21 @@
                 <span class="close">&times;</span>
                 <h3 id="mockTitle"></h3>
 
-                <form>
+                <form class="reset">
                     <p>Select mock data type:</p>
                     <label for="ran_names">Random Names</label>
-                    <input type="radio" id="ran_names" name="mockType" value="get_random_names" class="mockOptions" /><br>
+                    <input type="radio" id="ran_names" name="mockType" value="get_random_names" class="mockOptions" checked="true" onchange="handleMockToggle(false)" /><br>
 
                     <label for="custom">Custom:</label>
-                    <input type="radio" id="custom" name="mockType" value="custom" class="mockOptions"><br>
+                    <input type="radio" id="custom" name="mockType" value="custom" class="mockOptions" onchange="handleMockToggle(true)" /><br>
 
-                    <label for="colName">Column Name</label>
-                    <input type="text" name="colName" class="customs" /><br>
+                    <div id="customContainer" style="display: none;">
+                        <label for="colName">Column Name</label>
+                        <input type="text" name="colName" class="customs" /><br>
 
-                    <label for="colVal">Value</label>
-                    <input type="text" name="colVal" class="customs" />
+                        <label for="colVal">Value</label>
+                        <input type="text" name="colVal" class="customs" />
+                    </div>
                 </form>
 
                 <input type="submit" value="Submit" id="submitMock" />
@@ -188,6 +194,13 @@
             let alteringModal = document.getElementById("alteringModal");
             let newColumnModal= document.getElementById("newColumnModal");
             let presetModal= document.getElementById("presetModal");
+
+            function handleMockToggle(shouldCustomOpen) {
+                const cusCont = document.getElementById("customContainer");
+
+                if (shouldCustomOpen) cusCont.style.display = "block";
+                else cusCont.style.display = "none";
+            }
             
             function preventDefaults (e) {
                 e.preventDefault();
@@ -480,7 +493,10 @@
             }
             function handleFiles(files, featureName) {
                 ([...files]).forEach(x => uploadFile(x, featureName));
-                console.log(featureName)
+            }
+
+            function resetForms() {
+                [...document.getElementsByClassName("reset")].forEach(x => x.reset());
             }
 
             // When the user clicks on <span> (x), close the modal
@@ -492,6 +508,8 @@
                     location.reload();
                 }
             } 
+
+            resetForms();
         </script>
     </body>
 </html>
