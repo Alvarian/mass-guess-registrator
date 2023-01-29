@@ -5,8 +5,12 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Document</title>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter">
 
         <style>
+            * {
+                font-family: "Inter", sans-serif;
+            }
             .drop-area {
                 border: 2px dashed #ccc;
                 border-radius: 20px;
@@ -44,7 +48,7 @@
             .button:hover {
                 background: #ddd;
             }
-            #fileElem {
+            .fileInputs {
                 display: none;
             }
 
@@ -108,8 +112,8 @@
                 <h3>Events/Summits</h3>
                 <form class="my-form">
                     <p>Upload multiple files with the file dialog or by dragging and dropping images onto the dashed region</p>
-                    <input type="file" id="fileElem" multiple accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="handleFiles(this.files)">
-                    <label class="button" for="fileElem">Select some files</label>
+                    <input class="fileInputs" type="file" id="event" multiple accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" onchange="handleFiles(this.files, 'events')">
+                    <label class="button" for="event">Select some files</label>
                 </form>
             </div>
         </div>
@@ -122,8 +126,8 @@
                     <h3>{{ (feature[0].split("_")[0] + " " + feature[0].split("_")[1]).title() }}</h3>
                     <form class="my-form">
                         <p>Upload multiple files with the file dialog or by dragging and dropping images onto the dashed region</p>
-                        <input type="file" id="fileElem" multiple accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="handleFiles(this.files)">
-                        <label class="button" for="fileElem">Select some files</label>
+                        <input class="fileInputs" type="file" id="featureInput{{ feature[0] }}" multiple accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" onchange="handleFiles(this.files, `{{ feature[0] }}`)">
+                        <label class="button" for="featureInput{{ feature[0] }}">Select some files</label>
                     </form>
                 </div>
             {% endfor %}
@@ -161,19 +165,21 @@
                 <span class="close">&times;</span>
                 <h3 id="mockTitle"></h3>
 
-                <form>
+                <form class="reset">
                     <p>Select mock data type:</p>
                     <label for="ran_names">Random Names</label>
-                    <input type="radio" id="ran_names" name="mockType" value="get_random_names" class="mockOptions" /><br>
+                    <input type="radio" id="ran_names" name="mockType" value="get_random_names" class="mockOptions" checked="true" onchange="handleMockToggle(false)" /><br>
 
                     <label for="custom">Custom:</label>
-                    <input type="radio" id="custom" name="mockType" value="custom" class="mockOptions"><br>
+                    <input type="radio" id="custom" name="mockType" value="custom" class="mockOptions" onchange="handleMockToggle(true)" /><br>
 
-                    <label for="colName">Column Name</label>
-                    <input type="text" name="colName" class="customs" /><br>
+                    <div id="customContainer" style="display: none;">
+                        <label for="colName">Column Name</label>
+                        <input type="text" name="colName" class="customs" /><br>
 
-                    <label for="colVal">Value</label>
-                    <input type="text" name="colVal" class="customs" />
+                        <label for="colVal">Value</label>
+                        <input type="text" name="colVal" class="customs" />
+                    </div>
                 </form>
 
                 <input type="submit" value="Submit" id="submitMock" />
@@ -188,6 +194,13 @@
             let alteringModal = document.getElementById("alteringModal");
             let newColumnModal= document.getElementById("newColumnModal");
             let presetModal= document.getElementById("presetModal");
+
+            function handleMockToggle(shouldCustomOpen) {
+                const cusCont = document.getElementById("customContainer");
+
+                if (shouldCustomOpen) cusCont.style.display = "block";
+                else cusCont.style.display = "none";
+            }
             
             function preventDefaults (e) {
                 e.preventDefault();
@@ -221,8 +234,8 @@
                         method: 'POST',
                         body: formData
                     });
-
-                    if (!response.ok) throw response.text();
+                    
+                    if (!response.ok) throw (await response.text());
                     
                     if (response.statusText !== "OK") alert(response.statusText); 
 
@@ -250,7 +263,7 @@
                 let maxRow = XLSX.utils.decode_range(ws["!ref"]).e.r
                 delete ws["!ref"];
                 delete ws["!margins"];
-
+                
                 const columnList = (function() {
                     const list = [];
                     for (const cell in ws) {
@@ -265,18 +278,31 @@
                     return list;
                 })();
 
+                for (let idx = maxRow; idx >= 1; idx--) {
+                    const cell = ws[`A${idx}`];
+
+                    if (cell) break;
+
+                    maxRow--;
+                    
+                    for (let d_idx = 0; d_idx <= columnList.length-1; d_idx++) {
+                        delete ws[columnList[d_idx].letter+idx];
+                    }
+                }
+
                 function findInColumn(columnLetter, condition, valueCheck, errorTemplate) {
                     let hasValue = "";
+
                     switch (condition) {
                         case "equals":
-                            for (let idx = 1; idx <= maxRow+1; idx++) {
+                            for (let idx = 1; idx <= maxRow; idx++) {
                                 const cell = ws[`${columnLetter}${idx}`];
                                 
                                 if (cell == valueCheck) hasValue += errorTemplate(cell, idx);
                             }
                             break;
                         case "moreThan":
-                            for (let idx = 1; idx <= maxRow+1; idx++) {
+                            for (let idx = 1; idx <= maxRow; idx++) {
                                 const cell = ws[`${columnLetter}${idx}`];
                                 
                                 if (parseInt(cell) > valueCheck) hasValue += errorTemplate(cell, idx);
@@ -288,7 +314,7 @@
                 }
 
                 function squishString(string) {
-                    return string.replace(" ", "").toLowerCase();
+                    return string.replace(/^a-zA-Z0-9 ]/g, '').replace(" ", "").toLowerCase();
                 }
 
                 function limitInput(element, length) {
@@ -320,6 +346,7 @@
                                 input.onkeypress = (event) => limitInput(event, slot["max"]);
                                 input.type = slot["type"];
                                 input.placeholder = slot["holder"];
+                                input.value = slot["prefill"];
                                 input.name = field["name"];
                                 input.className = "presets";
                                 input.maxLength = slot["max"];
@@ -341,6 +368,15 @@
                 }
 
                 let formData = new FormData();
+                const currentDateStrings = (() => {
+                    const current = new Date();
+                    
+                    return {
+                        mm: current.getMonth()+1,
+                        dd: current.getDate(),
+                        yyyy: current.getFullYear()
+                    }
+                })()
 
                 switch (feature) {
                     case "insert_mock_data":
@@ -358,35 +394,35 @@
                     case "events":
                         createPresetFields([{
                             name: "start_date",
-                            slots: [{type: "number", holder: "MM", max: "2"}, {type: "number", holder: "DD", max: "2"}, {type: "number", holder: "YYYY", max: "4"}]
+                            slots: [{type: "number", holder: "MM", max: "2", prefill: currentDateStrings.mm}, {type: "number", holder: "DD", max: "2", prefill: currentDateStrings.dd}, {type: "number", holder: "YYYY", max: "4", prefill: currentDateStrings.yyyy}]
                         }, {
                             name: "end_date",
-                            slots: [{type: "number", holder: "MM", max: "2"}, {type: "number", holder: "DD", max: "2"}, {type: "number", holder: "YYYY", max: "4"}]
+                            slots: [{type: "number", holder: "MM", max: "2", prefill: ""}, {type: "number", holder: "DD", max: "2", prefill: ""}, {type: "number", holder: "YYYY", max: "4", prefill: ""}]
                         }], document.getElementById("presetContainer"));
 
                         let errorStatement = "";
-                        const hasEmail = columnList.find(x => x["name"] === "email") || columnList.find(x => squishString(x["name"]) === "emailaddress");
-                        const hasPhone = columnList.find(x => x["name"] === "phone") || columnList.find(x => squishString(x["name"]) === "phonenumber");
+                        const hasEmail = columnList.find(x => x["name"] === "email") || columnList.find(x => squishString(x["name"]) === "emailaddress") || undefined;
+                        const hasPhone = columnList.find(x => x["name"] === "phone") || columnList.find(x => squishString(x["name"]) === "phonenumber") || undefined;
                         if (!(hasEmail || hasPhone)) errorStatement += "Please create columns: ('email' or 'email address') OR ('phone' or 'phone number')! ";
-                        
-                        const hasFirst = columnList.find(x => squishString(x["name"]) === "firstname");
-                        const hasLast = columnList.find(x => squishString(x["name"]) === "lastname");
-                        const hasName = columnList.find(x => x["name"] === "name") || columnList.find(x => squishString(x["name"]) === "full name");
+                
+                        const hasFirst = columnList.find(x => squishString(x["name"]) === "firstname") || undefined;
+                        const hasLast = columnList.find(x => squishString(x["name"]) === "lastname") || undefined;
+                        const hasName = columnList.find(x => x["name"] === "name") || columnList.find(x => squishString(x["name"]) === "full name") || undefined;
                         if (!(hasName || (hasFirst && hasLast))) errorStatement += "Please create columns: ('name' or 'full name') OR ('first name' and 'last name')!";
 
                         if (errorStatement) return alert(errorStatement);
 
-                        const emailHasNull = findInColumn(hasEmail["letter"], "equals", undefined, (value, idx) => `Missing email was found on row ${idx}. `);
-                        const phoneHasNull = findInColumn(hasPhone["letter"], "equals", undefined, (value, idx) => `Missing phone was found on row ${idx}. `);
+                        const emailHasNull = findInColumn(hasEmail?.letter, "equals", undefined, (value, idx) => `Missing email was found on row ${idx}. `);
+                        const phoneHasNull = findInColumn(hasPhone?.letter, "equals", undefined, (value, idx) => `Missing phone was found on row ${idx}. `);
                         if (emailHasNull && phoneHasNull) return alert("Both: " + emailHasNull + phoneHasNull);
 
                         if (hasName) {
-                            const nameHasNull = findInColumn(hasName["letter"], "equals", undefined, (value, idx) => `Missing name was found on row ${idx}. `);
+                            const nameHasNull = findInColumn(hasName?.letter, "equals", undefined, (value, idx) => `Missing name was found on row ${idx}. `);
 
                             if (nameHasNull) return alert(nameHasNull);
                         } else {
-                            const firstHasNull = findInColumn(hasFirst["letter"], "equals", undefined, (value, idx) => `Missing first name was found on row ${idx}. `);
-                            const lastHasNull = findInColumn(hasLast["letter"], "equals", undefined, (value, idx) => `Missing last name was found on row ${idx}. `);
+                            const firstHasNull = findInColumn(hasFirst?.letter, "equals", undefined, (value, idx) => `Missing first name was found on row ${idx}. `);
+                            const lastHasNull = findInColumn(hasLast?.letter, "equals", undefined, (value, idx) => `Missing last name was found on row ${idx}. `);
                             
                             if (firstHasNull && lastHasNull) return alert("Both: " + firstHasNull + lastHasNull);
                             if (firstHasNull || lastHasNull) return alert(firstHasNull || lastHasNull);
@@ -402,17 +438,17 @@
                             if (parseInt(presetFields[0]) > 12) return alert("Month(MM) cannot be over 12!");
 
                             // compare epoch of current and epoch of input: !x < current
-                            const sdEpoch = parseInt((new Date(`${presetFields[2]}-${presetFields[0]}-${presetFields[1]}`)).getTime());
-                            const edEpoch = parseInt((new Date(`${presetFields[5]}-${presetFields[3]}-${presetFields[4]}`)).getTime());
-                            const currentEpoch = parseInt((new Date()).getTime());
+                            const sdEpoch = parseInt((new Date(`${presetFields[2]}-${presetFields[0]}-${presetFields[1]}`)).getTime() + 1 * 60 * 1000);
+                            const edEpoch = parseInt((new Date(`${presetFields[5]}-${presetFields[3]}-${presetFields[4]}`)).getTime() + 2 * 60 * 1000);
+                            const currentEpoch = parseInt((new Date(`${presetFields[2]}-${presetFields[0]}-${presetFields[1]}`)).getTime())
 
-                            if (sdEpoch < currentEpoch) return alert("Start date cannot be less than current date!");
-                            if (edEpoch < sdEpoch) return alert("End date cannot be less than start date!");
-
+                            if (sdEpoch < currentEpoch) throw alert("Start date cannot be less than current date!");
+                            if (edEpoch < sdEpoch) throw alert("End date cannot be less than start date!");
+                            
                             formData.append("preset_fields", JSON.stringify({
                                 "Start Date": `${presetFields[0]}-${presetFields[1]}-${presetFields[2]}`,
                                 "End Date": `${presetFields[3]}-${presetFields[4]}-${presetFields[5]}`,
-                                "columns": [[hasName["name"]] || [hasFirstAndLast["name"]], [hasEmail["name"]]]
+                                "columns": [hasName ? [hasName.name] : [hasFirst.name, hasLast.name], hasEmail.name]
                             }));
                         });
 
@@ -455,6 +491,13 @@
                 
                 ([...files]).forEach(x => uploadFile(x, featureName));
             }
+            function handleFiles(files, featureName) {
+                ([...files]).forEach(x => uploadFile(x, featureName));
+            }
+
+            function resetForms() {
+                [...document.getElementsByClassName("reset")].forEach(x => x.reset());
+            }
 
             // When the user clicks on <span> (x), close the modal
             [...span].forEach(x => x.onclick = () => location.reload());
@@ -465,6 +508,8 @@
                     location.reload();
                 }
             } 
+
+            resetForms();
         </script>
     </body>
 </html>

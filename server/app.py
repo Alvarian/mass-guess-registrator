@@ -3,20 +3,35 @@ from xl_utility.formatter import *
 from xl_utility.determinizer import *
 
 from inspect import getmembers, isfunction
-import json, os
+import json
 
 from io import BytesIO
 from flask import Flask, request, render_template, send_file, session
 import names
 
 app = Flask(__name__)
-app.debug = bool(int(os.environ.get("FLASK_DEBUG")))
-app.secret_key = os.environ.get("FLASK_SECRET")
+app.debug = True
+app.secret_key = "development key"
+
+class pipe:
+    def __init__(self, value, func=None):
+        self.value = value
+        self.func = func
+    def __getitem__(self, func):
+        return pipe(self.value, func)        
+    def __call__(self, *args, **kwargs):
+        if type(self.value) == dict and self.value["exception"]:
+            raise ValueError(self.value["exception"])
+
+        return pipe(self.func(self.value, *args, **kwargs))
+    def __repr__(self):
+        return 'pipe(%s, %s)' % (self.value, self.func)
+
 
 
 @app.route("/")
 def index():
-    omitted_functions = ["NamedTemporaryFile", "load_workbook", "get_column_letter"]
+    omitted_functions = ["NamedTemporaryFile", "load_workbook", "get_column_letter", "capitalize_firstLetter"]
 
     formatter_features = list(filter(lambda x: bool(x[0].split("_")[0]) and not x[0].split()[0] in omitted_functions, getmembers(formatter, isfunction)))
     determinizer_features = list(filter(lambda x: bool(x[0].split("_")[0]) and not x[0].split()[0] in omitted_functions, getmembers(determinizer, isfunction)))
@@ -26,22 +41,26 @@ def index():
 
 @app.route("/events", methods = ["POST"])
 def get_event_preset():
-    EXCEL_FILE = BytesIO(request.files["file"].read())
+    EXCEL_FILE = {'buffer': request.files["file"], 'exception': ''}
     preset_payload = json.loads(request.form["preset_fields"])
+    print(preset_payload)
+    try:
+        event_formatted = (pipe(EXCEL_FILE)
+            [separate_names](preset_payload["columns"][0])
+            [insert_mock_data](["Start Time"], "7:00am")
+            [insert_mock_data](["End Time"], "7:00pm")
+            [insert_mock_data](["Start Date"], preset_payload["Start Date"])
+            [insert_mock_data](["End Date"], preset_payload["End Date"])
+        .value)
 
-    formatted_sn = separate_names(preset_payload["columns"][0], EXCEL_FILE)
-    formatted_start_time = insert_mock_data(["Start Time"], "7:00am", BytesIO(formatted_sn["buffer"]))
-    formatted_end_time = insert_mock_data(["End Time"], "7:00pm", BytesIO(formatted_start_time["buffer"]))
-    formatted_start_date = insert_mock_data(["Start Date"], preset_payload["Start Date"], BytesIO(formatted_end_time["buffer"]))
-    formatted_end_date = insert_mock_data(["End Date"], preset_payload["End Date"], BytesIO(formatted_start_date["buffer"]))
-
-    final_exception = formatted_sn["exception"] + formatted_start_time["exception"] + formatted_end_time["exception"] if not all([formatted_sn["exception"], formatted_start_time["exception"], formatted_end_time["exception"]]) else "OK"
-
-    return send_file(
-        BytesIO(formatted_end_date["buffer"]), 
-        download_name="new_sheet.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    ), final_exception or None
+        return send_file(
+            BytesIO(event_formatted["buffer"].read()), 
+            download_name="new_sheet.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    except Exception as err:
+        print("??", err)
+        return str(err), 403
 
 @app.route("/insert_mock_data", methods = ["POST"])
 def get_mock_column():
@@ -66,57 +85,60 @@ def get_mock_column():
         "get_random_names": _generate_ran_names,
         "custom": _assemble_custom_clone
     }
-    EXCEL_FILE = BytesIO(request.files["file"].read())
+
+    EXCEL_FILE = {'buffer': request.files["file"], 'exception': ''}
     module_args = switcher.get(request.form["mock_selected"], None)()
 
-    has_altered_sheet = insert_mock_data(module_args["column"], module_args["data"], EXCEL_FILE)
+    has_altered_sheet = insert_mock_data(EXCEL_FILE, module_args["column"], module_args["data"])
 
     return send_file(
-        BytesIO(has_altered_sheet["buffer"]), 
+        BytesIO(has_altered_sheet["buffer"].read()), 
         download_name="new_sheet.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     ), has_altered_sheet["exception"] or None
 
 @app.route("/capitalize_all", methods = ["POST"])
 def get_capitalized_column():
-    EXCEL_FILE = BytesIO(request.files["file"].read())
+    EXCEL_FILE = {'buffer': request.files["file"], 'exception': ''}
+    
+    has_altered_sheet = capitalize_all(EXCEL_FILE, request.form["columns_selected"].split(","))
 
-    has_altered_sheet = capitalize_all(request.form["columns_selected"].split(","), EXCEL_FILE)
     return send_file(
-        BytesIO(has_altered_sheet["buffer"]), 
+        BytesIO(has_altered_sheet["buffer"].read()), 
         download_name="new_sheet.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     ), has_altered_sheet["exception"] or None
 
 @app.route("/capitalize_firstletter", methods = ["POST"])
 def get_capitalized_first():
-    EXCEL_FILE = BytesIO(request.files["file"].read())
+    EXCEL_FILE = {'buffer': request.files["file"], 'exception': ''}
 
-    has_altered_sheet = capitalize_firstLetter(request.form["columns_selected"].split(","), EXCEL_FILE)
+    has_altered_sheet = capitalize_firstLetter(EXCEL_FILE, request.form["columns_selected"].split(","))
     return send_file(
-        BytesIO(has_altered_sheet["buffer"]), 
+        BytesIO(has_altered_sheet["buffer"].read()), 
         download_name="new_sheet.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     ), has_altered_sheet["exception"] or None
 
 @app.route("/separate_addresses", methods = ["POST"])
 def get_separated_addresses():
-    EXCEL_FILE = BytesIO(request.files["file"].read())
+    EXCEL_FILE = {'buffer': request.files["file"], 'exception': ''}
 
-    has_altered_sheet = separate_addresses(request.form["columns_selected"].split(","), EXCEL_FILE)
+    has_altered_sheet = separate_addresses(EXCEL_FILE, request.form["columns_selected"].split(","))
     return send_file(
-        BytesIO(has_altered_sheet["buffer"]), 
+        BytesIO(has_altered_sheet["buffer"].read()), 
         download_name="new_sheet.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     ), has_altered_sheet["exception"] or None
 
 @app.route("/separate_names", methods = ["POST"])
 def get_separated_names():
-    EXCEL_FILE = BytesIO(request.files["file"].read())
+    EXCEL_FILE = {'buffer': request.files["file"], 'exception': ''}
 
-    has_altered_sheet = separate_names(request.form["columns_selected"].split(","), EXCEL_FILE)
+    has_altered_sheet = separate_names(EXCEL_FILE, request.form["columns_selected"].split(","))
     return send_file(
-        BytesIO(has_altered_sheet["buffer"]), 
+        BytesIO(has_altered_sheet["buffer"].read()), 
         download_name="new_sheet.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     ), has_altered_sheet["exception"] or None
+
