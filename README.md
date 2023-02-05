@@ -1,3 +1,8 @@
+![](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)
+![](https://img.shields.io/badge/Google%20Sheets-34A853?style=for-the-badge&logo=google-sheets&logoColor=white)
+![](https://img.shields.io/badge/Microsoft_Excel-217346?style=for-the-badge&logo=microsoft-excel&logoColor=white)
+***
+
 # Introduction
 
 This project is a Flask application that allows users to drag and drop Excel files into input elements on a single webpage, where the files will be processed and returned as new formatted files. The application supports multiple input elements, each performing different formatting tasks.
